@@ -1,22 +1,20 @@
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 
-// --- CONFIGURACIÓN ---
-// IMPORTANTE: Si usas Variables de Entorno en Render, usa process.env.TOKEN
-// Si no, pon tus valores aquí abajo entre comillas.
-const BOT_TOKEN = process.env.BOT_TOKEN || '8634267612:AAH3hOHRzwXaV5KBHzUo6QefOSyGwx3G3Sw';
-const CHAT_ID = process.env.CHAT_ID || '5203992513';
+// --- CONFIGURACIÓN CON TUS DATOS ---
+const BOT_TOKEN = '8634267612:AAH3hOHRzwXaV5KBHzUo6QefOSyGwx3G3Sw';
+const CHAT_ID = '5203992513';
 const INTERVAL_MS = 5000; // Cada 5 segundos
 
-// --- BASE DE DATOS DE TARJETAS (Ejemplo pequeño, puedes agregar más) ---
-// Si tienes un archivo cards_db.js grande, puedes importarlo aquí.
-// Por ahora, usamos este array como respaldo para asegurar que funcione.
+// --- BASE DE DATOS DE TARJETAS (Ejemplo inicial) ---
+// Puedes agregar más tarjetas a este array manualmente o importarlas de un JSON más tarde
 const CARDS_DB = [
     { number: '4532015112830366', exp: '12/26', cvv: '123', name: 'John Doe', zip: '10001', source: 'Amazon' },
     { number: '5425233430109807', exp: '08/25', cvv: '456', name: 'Jane Smith', zip: '90210', source: 'Netflix' },
     { number: '378282246310005', exp: '11/27', cvv: '1234', name: 'Amex User', zip: '10002', source: 'Spotify' },
-    { number: '6011111111111117', exp: '03/26', cvv: '789', name: 'Discover Card', zip: '10003', source: 'Amazon' }
-    // Agrega más tarjetas aquí o importa tu JSON
+    { number: '6011111111111117', exp: '03/26', cvv: '789', name: 'Discover Card', zip: '10003', source: 'Amazon' },
+    { number: '4916338440108460', exp: '05/28', cvv: '321', name: 'Michael Brown', zip: '30301', source: 'Walmart' },
+    { number: '5105105105105100', exp: '09/25', cvv: '654', name: 'Sarah Connor', zip: '94102', source: 'Apple' }
 ];
 
 // --- INICIALIZACIÓN DEL BOT ---
