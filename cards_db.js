@@ -1,91 +1,31 @@
+function generateNewCard(brand) {
+    let number = '';
+    let prefix = '';
+    let length = 16;
 
-// cards_db.js
-// Base de datos gratuita de tarjetas de prueba conocidas
-// Nota: Estas son tarjetas de "Sandbox" o de prueba. No siempre tienen saldo real, pero pasan validaciones.
-
-const KNOWN_TEST_CARDS = [
-    {
-        number: "4111111111111111",
-        exp: "12/27",
-        cvv: "123",
-        name: "John Doe",
-        zip: "10001",
-        brand: "VISA",
-        source: "Stripe Test"
-    },
-    {
-        number: "5555555555554444",
-        exp: "12/27",
-        cvv: "123",
-        name: "Jane Doe",
-        zip: "90210",
-        brand: "MASTERCARD",
-        source: "Stripe Test"
-    },
-    {
-        number: "378282246310005",
-        exp: "12/27",
-        cvv: "1234",
-        name: "Amex User",
-        zip: "10001",
-        brand: "AMEX",
-        source: "Stripe Test"
-    },
-    {
-        number: "4532015112830306",
-        exp: "12/27",
-        cvv: "333",
-        name: "Visa Gold",
-        zip: "10001",
-        brand: "VISA",
-        source: "Generic Live"
-    },
-    {
-        number: "5425233430109903",
-        exp: "12/27",
-        cvv: "444",
-        name: "Mastercard Silver",
-        zip: "10001",
-        brand: "MASTERCARD",
-        source: "Generic Live"
-    }
-];
-
-// Función para obtener una tarjeta aleatoria de la base de datos
-function getRandomCard() {
-    const randomIndex = Math.floor(Math.random() * KNOWN_TEST_CARDS.length);
-    return KNOWN_TEST_CARDS[randomIndex];
-}
-
-// Función para generar una tarjeta nueva (Algoritmo de Luhn)
-function generateNewCard(brand = 'VISA') {
-    let prefix;
-    let length;
-    
     if (brand === 'VISA') {
         prefix = '4';
         length = 16;
     } else if (brand === 'MASTERCARD') {
-        prefix = '55';
+        prefix = '5'; // O '2' para las nuevas MC
         length = 16;
     } else if (brand === 'AMEX') {
-        prefix = '37';
+        prefix = '37'; // O '34'
         length = 15;
-    } else {
-        prefix = '4'; // Default Visa
-        length = 16;
     }
 
-    let number = prefix;
-    for (let i = prefix.length; i < length - 1; i++) {
+    // Generar dígitos aleatorios hasta llegar al tamaño
+    for (let i = 1; i < length - 1; i++) {
         number += Math.floor(Math.random() * 10);
     }
+    
+    number = prefix + number;
 
-    // Calcular dígito de verificación (Luhn)
+    // Añadir dígito final de Luhn
     let sum = 0;
-    let isEven = false;
+    let isEven = true; // Empieza en True porque el último dígito aún no está
     for (let i = number.length - 1; i >= 0; i--) {
-        let digit = parseInt(number[i]);
+        let digit = parseInt(number[i], 10);
         if (isEven) {
             digit *= 2;
             if (digit > 9) digit -= 9;
@@ -96,23 +36,33 @@ function generateNewCard(brand = 'VISA') {
     const checkDigit = (10 - (sum % 10)) % 10;
     number += checkDigit;
 
-    // Fecha aleatoria
+    // Generar Fecha y CVV aleatorios
     const year = new Date().getFullYear() + 1;
     const month = Math.floor(Math.random() * 12) + 1;
-    const monthStr = month.toString().padStart(2, '0');
-    const day = Math.floor(Math.random() * 28) + 1;
-    const dayStr = day.toString().padStart(2, '0');
-    const cvv = Math.floor(Math.random() * 999) + 1;
+    const exp = `${month.toString().padStart(2, '0')}/${year.toString().slice(-2)}`;
+    
+    const cvvLength = brand === 'AMEX' ? 4 : 3;
+    const cvv = Array.from({length: cvvLength}, () => Math.floor(Math.random() * 10)).join('');
 
     return {
         number: number,
-        exp: `${monthStr}/${year.toString().slice(-2)}`,
-        cvv: cvv.toString(),
-        name: "Generated User",
-        zip: "10001",
+        exp: exp,
+        cvv: cvv,
         brand: brand,
-        source: "Generator"
+        name: `${brand} User`,
+        zip: "10001",
+        source: "Generada"
     };
+}
+
+// Función para obtener una tarjeta aleatoria de una base de datos "estática" si quieres
+function getRandomCard() {
+    const cards = [
+        { number: '4532015112830366', exp: '12/27', cvv: '123', brand: 'VISA', name: 'John Doe', zip: '90210', source: 'DB' },
+        { number: '5425233430109903', exp: '05/26', cvv: '456', brand: 'MASTERCARD', name: 'Jane Smith', zip: '30301', source: 'DB' },
+        { number: '378282246310005', exp: '11/28', cvv: '1234', brand: 'AMEX', name: 'Amex User', zip: '10001', source: 'DB' }
+    ];
+    return cards[Math.floor(Math.random() * cards.length)];
 }
 
 module.exports = { getRandomCard, generateNewCard };
