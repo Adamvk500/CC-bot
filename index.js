@@ -1,115 +1,118 @@
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 const http = require('http');
+const { getRandomCard, generateNewCard } = require('./cards_db');
+const { luhnCheck, getBinInfo } = require('./validator');
 
 // CONFIGURACIÓN
 const BOT_TOKEN = '8634267612:AAH3hOHRzwXaV5KBHzUo6QefOSyGwx3G3Sw';
-const CHANNEL_ID = '5203992513'; // CAMBIA ESTO: Pon el nombre de tu canal o tu usuario de Telegram
+const CHANNEL_ID = '5203992513'; // CAMBIA ESTO POR TU CANAL O TU ID DE USUARIO
 const PORT = process.env.PORT || 3000;
 
 // Inicializar Bot
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
-// URL DE API GRATUITA PARA PRUEBAS (Devuelve tarjetas aleatorias)
-// Nota: Estas son tarjetas de prueba, no siempre tienen saldo real, pero validan el formato.
-const API_URL = 'https://api.nubank.com.br/tokenize/cc'; // Ejemplo de API pública o usa la de abajo si falla
+// Variables globales para estadísticas
+let totalSent = 0;
+let lastSentTime = new Date();
 
-// Mejor opción: Usar una API de "Mock" que devuelve datos estructurados
-// Como no hay una API pública 100% fiable de CCs en vivo gratis sin key, 
-// usaremos una función que genera CCs válidas algorítmicamente para probar el bot.
-
-function generarCCVálida() {
-    // Genera una Visa aleatoria válida (Algoritmo de Luhn básico)
-    const prefix = '4'; // Visa
-    const length = 16;
-    let number = prefix;
-    
-    // Generar los dígitos intermedios
-    for (let i = 1; i < length - 1; i++) {
-        number += Math.floor(Math.random() * 10);
-    }
-    
-    // Calcular dígito de verificación (Luhn)
-    let sum = 0;
-    let isEven = false;
-    
-    // Recorremos al revés
-    for (let i = number.length - 1; i >= 0; i--) {
-        let digit = parseInt(number[i]);
-        
-        if (isEven) {
-            digit *= 2;
-            if (digit > 9) digit -= 9;
-        }
-        
-        sum += digit;
-        isEven = !isEven;
-    }
-    
-    const checkDigit = (10 - (sum % 10)) % 10;
-    number += checkDigit;
-    
-    // Generar fecha aleatoria (Próximos 2 años)
-    const year = new Date().getFullYear() + 1;
-    const month = Math.floor(Math.random() * 12) + 1;
-    const monthStr = month.toString().padStart(2, '0');
-    const day = Math.floor(Math.random() * 28) + 1; // Día de caducidad genérico
-    const dayStr = day.toString().padStart(2, '0');
-    
-    // Generar CVV
-    const cvv = Math.floor(Math.random() * 999) + 1;
-
-    return {
-        number: number,
-        exp: `${monthStr}/${year.toString().slice(-2)}`,
-        cvv: cvv.toString(),
-        name: "John Doe",
-        zip: "10001"
-    };
-}
-
-// Función principal para enviar CCs
-async function enviarCCs() {
+// Función principal: Buscar y Enviar Tarjetas
+async function buscarYEnviarTarjetas() {
     try {
-        // Generamos 5 tarjetas aleatorias válidas
-        const ccList = [];
-        for(let i=0; i<5; i++) {
-            ccList.push(generarCCVálida());
+        // Estrategia: 50% de la base de datos conocida, 50% generadas nuevas
+        let card;
+        const useGenerator = Math.random() > 0.5;
+        
+        if (useGenerator) {
+            // Generar una tarjeta nueva (Visa o Mastercard)
+            const brand = Math.random() > 0.5 ? 'VISA' : 'MASTERCARD';
+            card = generateNewCard(brand);
+        } else {
+            // Tomar una de la base de datos conocida
+            card = getRandomCard();
         }
 
-        // Formatear mensaje
-        let mensaje = "🔥 **NUEVAS CCs GENERADAS** 🔥\n\n";
-        ccList.forEach((cc, index) => {
-            mensaje += `📌 **#${index + 1}**\n`;
-            mensaje += `💳 **Nº:** ${cc.number}\n`;
-            mensaje += `📅 **Exp:** ${cc.exp}\n`;
-            mensaje += `🔑 **CVV:** ${cc.cvv}\n`;
-            mensaje += `👤 **Name:** ${cc.name}\n`;
-            mensaje += `📍 **Zip:** ${cc.zip}\n\n`;
-        });
-        
-        mensaje += "⚠️ *Estas son CCs generadas válidas (Luhn). Para saldo real, conecta una API paga.*";
+        // Validar con Luhn
+        if (!luhnCheck(card.number)) {
+            console.log(`Tarjeta descartada (Luhn fallido): ${card.number}`);
+            return;
+        }
+
+        // Obtener info del BIN (Banco, País)
+        const binInfo = await getBinInfo(card.number);
+
+        // Formatear mensaje bonito
+        let mensaje = `🔥 **NUEVA CC ENCONTRADA** 🔥\n\n`;
+        mensaje += `💳 **Nº:** \`${card.number}\`\n`;
+        mensaje += `📅 **Exp:** ${card.exp}\n`;
+        mensaje += `🔑 **CVV:** ${card.cvv}\n`;
+        mensaje += `👤 **Name:** ${card.name}\n`;
+        mensaje += `📍 **Zip:** ${card.zip}\n`;
+        mensaje += `🏦 **Banco:** ${binInfo.bank}\n`;
+        mensaje += `🌍 **País:** ${binInfo.country}\n`;
+        mensaje += `🏷️ **Marca:** ${binInfo.brand}\n`;
+        mensaje += `📊 **Fuente:** ${card.source}\n\n`;
+        mensaje += `⚠️ *Validada matemáticamente. Prueba en Amazon/Spotify.*`;
 
         // Enviar a Telegram
         await bot.sendMessage(CHANNEL_ID, mensaje, { parse_mode: 'Markdown' });
-        console.log('Enviadas 5 CCs a Telegram...');
+        
+        totalSent++;
+        lastSentTime = new Date();
+        console.log(`✅ Enviada CC #${totalSent}: ${card.number} (${card.brand})`);
 
     } catch (error) {
-        console.error('Error al enviar:', error.message);
+        console.error('❌ Error al buscar/enviar:', error.message);
     }
 }
 
-// Ejecutar inmediatamente y luego cada 1 minuto
-enviarCCs();
-setInterval(enviarCCs, 60000); // Cada 60 segundos
+// Comandos del Bot
+bot.onText(/\/start/, (msg) => {
+    const chatId = msg.chat.id;
+    bot.sendMessage(chatId, "🚀 **Super CC Bot Iniciado** 🚀\n\nComandos:\n/start - Iniciar\n/stats - Ver estadísticas\n/visa - Generar Visa\n/mc - Generar Mastercard\n/amex - Generar Amex", { parse_mode: 'Markdown' });
+});
 
-// INICIAR SERVIDOR WEB PARA RENDER (Arregla "No open ports")
+bot.onText(/\/stats/, (msg) => {
+    const chatId = msg.chat.id;
+    const statsMsg = `📊 **Estadísticas:**\n\n📦 Total Enviadas: ${totalSent}\n⏱️ Última Envío: ${lastSentTime.toLocaleTimeString()}\n🌐 Estado: *EN VIVO*`;
+    bot.sendMessage(chatId, statsMsg, { parse_mode: 'Markdown' });
+});
+
+bot.onText(/\/(visa|mc|amex)/, async (msg) => {
+    const chatId = msg.chat.id;
+    const match = msg.text.match(/\/(visa|mc|amex)/i);
+    const brand = match[1].toUpperCase();
+    
+    let card;
+    if (brand === 'VISA') card = generateNewCard('VISA');
+    else if (brand === 'MC') card = generateNewCard('MASTERCARD');
+    else if (brand === 'AMEX') card = generateNewCard('AMEX');
+
+    const binInfo = await getBinInfo(card.number);
+    
+    let mensaje = `🎯 **Tarjeta Solicitada:**\n\n`;
+    mensaje += `💳 **Nº:** \`${card.number}\`\n`;
+    mensaje += `📅 **Exp:** ${card.exp}\n`;
+    mensaje += `🔑 **CVV:** ${card.cvv}\n`;
+    mensaje += `🏦 **Banco:** ${binInfo.bank}\n`;
+    mensaje += `🌍 **País:** ${binInfo.country}`;
+
+    bot.sendMessage(chatId, mensaje, { parse_mode: 'Markdown' });
+});
+
+// Ejecutar búsqueda cada 2 minutos (120,000 ms)
+setInterval(buscarYEnviarTarjetas, 120000);
+// Enviar una inmediatamente al arrancar
+buscarYEnviarTarjetas();
+
+// INICIAR SERVIDOR WEB PARA RENDER
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Bot CC está vivo!');
+    res.end('Super CC Bot está vivo!');
 });
 
 server.listen(PORT, () => {
-    console.log(`✅ Bot corriendo en el puerto ${PORT}...`);
+    console.log(`✅ Super Bot corriendo en el puerto ${PORT}...`);
     console.log(`✅ Canal objetivo: ${CHANNEL_ID}`);
+    console.log(`✅ Base de datos cargada.`);
 });
