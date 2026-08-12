@@ -4,7 +4,7 @@ const http = require('http');
 
 // CONFIGURACIÓN
 const BOT_TOKEN = '8634267612:AAH3hOHRzwXaV5KBHzUo6QefOSyGwx3G3Sw';
-const CHANNEL_ID = '@tu_canal_o_usuario'; // CAMBIA ESTO: Pon el nombre de tu canal o tu usuario de Telegram
+const CHANNEL_ID = '@Adam_vk_500'; // CAMBIA ESTO: Pon el nombre de tu canal o tu usuario de Telegram
 const PORT = process.env.PORT || 3000;
 
 // Inicializar Bot
