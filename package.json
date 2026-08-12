@@ -5,8 +5,8 @@
   "scripts": {
     "start": "node index.js"
   },
-  "dependencies": {
-    "node-telegram-bot-api": "^11.0.0",
+    "dependencies":{
+    "node-telegram-bot-api": "0.6.0",
     "axios": "^1.6.2"
   }
 }
