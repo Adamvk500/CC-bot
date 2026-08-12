@@ -5,11 +5,13 @@ const { getRandomCard, generateNewCard } = require('./cards_db');
 const { luhnCheck, getBinInfo } = require('./validator');
 
 // CONFIGURACIÓN
+// Asegúrate de que este token sea correcto. Si lo tienes en "Environment Variables" en Render, usa:
+// const BOT_TOKEN = process.env.BOT_TOKEN || 'TU_TOKEN_AQUI';
 const BOT_TOKEN = '8634267612:AAH3hOHRzwXaV5KBHzUo6QefOSyGwx3G3Sw';
 const CHANNEL_ID = '5203992513'; // CAMBIA ESTO POR TU CANAL O TU ID DE USUARIO
 const PORT = process.env.PORT || 3000;
 
-// Inicializar Bot
+// Inicializar Bot con polling
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
 // Variables globales para estadísticas
@@ -66,38 +68,44 @@ async function buscarYEnviarTarjetas() {
     }
 }
 
-// Comandos del Bot
-bot.onText(/\/start/, (msg) => {
+// MANEJO DE MENSAJES (Reemplazo de onText)
+bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
-    bot.sendMessage(chatId, "🚀 **Super CC Bot Iniciado** 🚀\n\nComandos:\n/start - Iniciar\n/stats - Ver estadísticas\n/visa - Generar Visa\n/mc - Generar Mastercard\n/amex - Generar Amex", { parse_mode: 'Markdown' });
-});
+    const text = msg.text;
 
-bot.onText(/\/stats/, (msg) => {
-    const chatId = msg.chat.id;
-    const statsMsg = `📊 **Estadísticas:**\n\n📦 Total Enviadas: ${totalSent}\n⏱️ Última Envío: ${lastSentTime.toLocaleTimeString()}\n🌐 Estado: *EN VIVO*`;
-    bot.sendMessage(chatId, statsMsg, { parse_mode: 'Markdown' });
-});
+    // Comando /start
+    if (text === '/start') {
+        const welcomeMsg = "🚀 **Super CC Bot Iniciado** 🚀\n\nComandos:\n/start - Iniciar\n/stats - Ver estadísticas\n/visa - Generar Visa\n/mc - Generar Mastercard\n/amex - Generar Amex";
+        await bot.sendMessage(chatId, welcomeMsg, { parse_mode: 'Markdown' });
+        return;
+    }
 
-bot.onText(/\/(visa|mc|amex)/, async (msg) => {
-    const chatId = msg.chat.id;
-    const match = msg.text.match(/\/(visa|mc|amex)/i);
-    const brand = match[1].toUpperCase();
-    
-    let card;
-    if (brand === 'VISA') card = generateNewCard('VISA');
-    else if (brand === 'MC') card = generateNewCard('MASTERCARD');
-    else if (brand === 'AMEX') card = generateNewCard('AMEX');
+    // Comando /stats
+    if (text === '/stats') {
+        const statsMsg = `📊 **Estadísticas:**\n\n📦 Total Enviadas: ${totalSent}\n⏱️ Última Envío: ${lastSentTime.toLocaleTimeString()}\n🌐 Estado: *EN VIVO*`;
+        await bot.sendMessage(chatId, statsMsg, { parse_mode: 'Markdown' });
+        return;
+    }
 
-    const binInfo = await getBinInfo(card.number);
-    
-    let mensaje = `🎯 **Tarjeta Solicitada:**\n\n`;
-    mensaje += `💳 **Nº:** \`${card.number}\`\n`;
-    mensaje += `📅 **Exp:** ${card.exp}\n`;
-    mensaje += `🔑 **CVV:** ${card.cvv}\n`;
-    mensaje += `🏦 **Banco:** ${binInfo.bank}\n`;
-    mensaje += `🌍 **País:** ${binInfo.country}`;
+    // Comandos /visa, /mc, /amex
+    if (text === '/visa' || text === '/mc' || text === '/amex') {
+        let brand = 'VISA';
+        if (text === '/mc') brand = 'MASTERCARD';
+        if (text === '/amex') brand = 'AMEX';
 
-    bot.sendMessage(chatId, mensaje, { parse_mode: 'Markdown' });
+        let card = generateNewCard(brand);
+        const binInfo = await getBinInfo(card.number);
+        
+        let mensaje = `🎯 **Tarjeta Solicitada:**\n\n`;
+        mensaje += `💳 **Nº:** \`${card.number}\`\n`;
+        mensaje += `📅 **Exp:** ${card.exp}\n`;
+        mensaje += `🔑 **CVV:** ${card.cvv}\n`;
+        mensaje += `🏦 **Banco:** ${binInfo.bank}\n`;
+        mensaje += `🌍 **País:** ${binInfo.country}`;
+
+        await bot.sendMessage(chatId, mensaje, { parse_mode: 'Markdown' });
+        return;
+    }
 });
 
 // Ejecutar búsqueda cada 2 minutos (120,000 ms)
