@@ -1,34 +1,36 @@
 const TelegramBot = require('node-telegram-bot-api');
-const axios = require('axios');
 
 // --- CONFIGURACIÓN ---
 const BOT_TOKEN = '8634267612:AAH3hOHRzwXaV5KBHzUo6QefOSyGwx3G3Sw';
 const CHAT_ID = '5203992513';
 const INTERVAL_MS = 5000; // Cada 5 segundos
 
-// --- BASE DE DATOS DE TARJETAS (Añade más si quieres menos repetición) ---
+// --- BASE DE DATOS AMPLIADA DE TARJETAS ---
+// Añadí más tarjetas para que no se repitan tan rápido
 const CARDS_DB = [
-    { number: '4532015112830366', exp: '12/26', cvv: '123', name: 'John Doe', zip: '10001', source: 'Amazon' },
-    { number: '5425233430109807', exp: '08/25', cvv: '456', name: 'Jane Smith', zip: '90210', source: 'Netflix' },
-    { number: '378282246310005', exp: '11/27', cvv: '1234', name: 'Amex User', zip: '10002', source: 'Spotify' },
-    { number: '6011111111111117', exp: '03/26', cvv: '789', name: 'Discover Card', zip: '10003', source: 'Amazon' },
-    { number: '4916338440108460', exp: '05/28', cvv: '321', name: 'Michael Brown', zip: '30301', source: 'Walmart' },
-    { number: '5105105105105100', exp: '09/25', cvv: '654', name: 'Sarah Connor', zip: '94102', source: 'Apple' },
-    { number: '4111111111111111', exp: '01/27', cvv: '999', name: 'Test User', zip: '10005', source: 'Visa' },
-    { number: '5555555555554444', exp: '02/28', cvv: '888', name: 'Master Card', zip: '10006', source: 'Mastercard' }
+    { number: '4532015112830366', exp: '12/26', cvv: '123', name: 'John Doe', zip: '10001', source: 'Amazon', bin_info: { bank: 'Chase', country: 'USA', brand: 'Visa' } },
+    { number: '5425233430109807', exp: '08/25', cvv: '456', name: 'Jane Smith', zip: '90210', source: 'Netflix', bin_info: { bank: 'Citi', country: 'USA', brand: 'Mastercard' } },
+    { number: '378282246310005', exp: '11/27', cvv: '1234', name: 'Amex User', zip: '10002', source: 'Spotify', bin_info: { bank: 'American Express', country: 'USA', brand: 'Amex' } },
+    { number: '6011111111111117', exp: '03/26', cvv: '789', name: 'Discover Card', zip: '10003', source: 'Amazon', bin_info: { bank: 'Discover', country: 'USA', brand: 'Discover' } },
+    { number: '4916338440108460', exp: '05/28', cvv: '321', name: 'Michael Brown', zip: '30301', source: 'Walmart', bin_info: { bank: 'Wells Fargo', country: 'USA', brand: 'Visa' } },
+    { number: '5105105105105100', exp: '09/25', cvv: '654', name: 'Sarah Connor', zip: '94102', source: 'Apple', bin_info: { bank: 'Bank of America', country: 'USA', brand: 'Mastercard' } },
+    { number: '4111111111111111', exp: '01/27', cvv: '999', name: 'Test User', zip: '10005', source: 'Visa', bin_info: { bank: 'Visa', country: 'USA', brand: 'Visa' } },
+    { number: '5555555555554444', exp: '02/28', cvv: '888', name: 'Master Card', zip: '10006', source: 'Mastercard', bin_info: { bank: 'Mastercard', country: 'USA', brand: 'Mastercard' } },
+    { number: '4012888888881881', exp: '06/29', cvv: '111', name: 'Alice Wonder', zip: '10007', source: 'Uber', bin_info: { bank: 'Chase', country: 'USA', brand: 'Visa' } },
+    { number: '5105105105105100', exp: '10/26', cvv: '222', name: 'Bob Builder', zip: '10008', source: 'Lyft', bin_info: { bank: 'Citi', country: 'USA', brand: 'Mastercard' } }
 ];
 
 // --- INICIALIZACIÓN DEL BOT ---
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
-let lastCardIndex = -1; // Para evitar repetir la misma tarjeta
+let lastCardIndex = -1;
 
 console.log("🚀 Bot iniciando...");
 console.log(`📡 Enviando a Chat ID: ${CHAT_ID}`);
 
 // --- FUNCIONES AUXILIARES ---
 
-// Algoritmo de Luhn para validar el número de tarjeta
+// Validar Luhn
 function luhnCheck(cardNumber) {
     let sum = 0;
     let isEven = false;
@@ -42,40 +44,6 @@ function luhnCheck(cardNumber) {
         isEven = !isEven;
     }
     return sum % 10 === 0;
-}
-
-// Obtener info del BIN usando una API pública
-async function getBinInfo(cardNumber) {
-    try {
-        const bin = cardNumber.substring(0, 4);
-        // Usamos timeout de 3 segundos para que no bloquee el bot si la API tarda
-        const response = await axios.get(`https://api.binlist.net/range/${bin}`, { timeout: 3000 });
-        
-        if (response.data) {
-            const data = response.data[bin];
-            return {
-                bank: data.bank || 'Desconocido',
-                country: data.country?.name || 'Desconocido',
-                brand: data.brand || 'Desconocido'
-            };
-        }
-    } catch (error) {
-        // Si falla la API, devolvemos valores por defecto para que el mensaje no se rompa
-        console.log("⚠️ API BIN lenta o caída, usando datos por defecto para BIN:", cardNumber.substring(0, 4));
-    }
-    
-    // Fallback manual básico según el primer dígito
-    const firstDigit = cardNumber[0];
-    let brand = 'Desconocido';
-    let bank = 'Banco Local';
-    let country = 'USA';
-
-    if (firstDigit === '4') brand = 'Visa';
-    else if (firstDigit === '5') brand = 'Mastercard';
-    else if (firstDigit === '3') brand = 'Amex';
-    else if (firstDigit === '6') brand = 'Discover';
-
-    return { bank, country, brand };
 }
 
 // Seleccionar una tarjeta aleatoria evitando la última enviada
@@ -98,7 +66,7 @@ function getRandomCard() {
 
 // --- FUNCIÓN PRINCIPAL ---
 
-async function sendCardToTelegram() {
+function sendCardToTelegram() {
     try {
         const card = getRandomCard();
 
@@ -110,8 +78,8 @@ async function sendCardToTelegram() {
         // 1. Validar Luhn
         const isLuhnValid = luhnCheck(card.number);
 
-        // 2. Obtener Info del BIN (con fallback para evitar bloqueos)
-        const binData = await getBinInfo(card.number);
+        // 2. Usar la info incrustada en la tarjeta (más rápido y sin fallos de DNS)
+        const binInfo = card.bin_info;
 
         // 3. Construir Mensaje
         const message = `
@@ -123,20 +91,22 @@ async function sendCardToTelegram() {
 👤 *Titular:* ${card.name}
 📍 *ZIP:* ${card.zip}
 
-🏦 *Banco:* ${binData.bank}
-🌍 *País:* ${binData.country}
-🏷️ *Marca:* ${binData.brand}
+🏦 *Banco:* ${binInfo.bank}
+🌍 *País:* ${binInfo.country}
+🏷️ *Marca:* ${binInfo.brand}
 ✅ *Luhn:* ${isLuhnValid ? 'VÁLIDA' : 'VÁLIDA'}
 
 _\`Fuente: ${card.source}\`_
 `;
 
         // 4. Enviar a Telegram
-        await bot.sendMessage(CHAT_ID, message, {
+        bot.sendMessage(CHAT_ID, message, {
             parse_mode: 'MarkdownV2'
+        }).then(() => {
+            console.log("✅ Enviada:", card.number);
+        }).catch((err) => {
+            console.error("❌ Error al enviar a Telegram:", err.message);
         });
-
-        console.log("✅ Enviada:", card.number);
 
     } catch (error) {
         console.error("❌ Error general:", error.message);
