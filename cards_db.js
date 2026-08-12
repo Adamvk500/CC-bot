@@ -1,3 +1,20 @@
+// Función auxiliar para generar una fecha futura aleatoria
+function generateFutureDate() {
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1; // 1-12
+    
+    // Generar un año entre este año y +3 años
+    const futureYear = currentYear + Math.floor(Math.random() * 4); 
+    const futureMonth = Math.floor(Math.random() * 12) + 1;
+    
+    // Formato MM/YY
+    const mm = futureMonth.toString().padStart(2, '0');
+    const yy = futureYear.toString().slice(-2);
+    
+    return { exp: `${mm}/${yy}`, year: futureYear };
+}
+
 function generateNewCard(brand) {
     let number = '';
     let prefix = '';
@@ -7,23 +24,23 @@ function generateNewCard(brand) {
         prefix = '4';
         length = 16;
     } else if (brand === 'MASTERCARD') {
-        prefix = '5'; // O '2' para las nuevas MC
+        prefix = '5'; 
         length = 16;
     } else if (brand === 'AMEX') {
-        prefix = '37'; // O '34'
+        prefix = '37'; 
         length = 15;
     }
 
-    // Generar dígitos aleatorios hasta llegar al tamaño
+    // Generar dígitos aleatorios
     for (let i = 1; i < length - 1; i++) {
         number += Math.floor(Math.random() * 10);
     }
     
     number = prefix + number;
 
-    // Añadir dígito final de Luhn
+    // Calcular dígito Luhn
     let sum = 0;
-    let isEven = true; // Empieza en True porque el último dígito aún no está
+    let isEven = true; 
     for (let i = number.length - 1; i >= 0; i--) {
         let digit = parseInt(number[i], 10);
         if (isEven) {
@@ -36,17 +53,14 @@ function generateNewCard(brand) {
     const checkDigit = (10 - (sum % 10)) % 10;
     number += checkDigit;
 
-    // Generar Fecha y CVV aleatorios
-    const year = new Date().getFullYear() + 1;
-    const month = Math.floor(Math.random() * 12) + 1;
-    const exp = `${month.toString().padStart(2, '0')}/${year.toString().slice(-2)}`;
-    
+    // Generar Fecha FUTURE
+    const dateInfo = generateFutureDate();
     const cvvLength = brand === 'AMEX' ? 4 : 3;
     const cvv = Array.from({length: cvvLength}, () => Math.floor(Math.random() * 10)).join('');
 
     return {
         number: number,
-        exp: exp,
+        exp: dateInfo.exp,
         cvv: cvv,
         brand: brand,
         name: `${brand} User`,
@@ -55,14 +69,13 @@ function generateNewCard(brand) {
     };
 }
 
-// Función para obtener una tarjeta aleatoria de una base de datos "estática" si quieres
+// Función para obtener una tarjeta estática con fecha CORREGIDA
 function getRandomCard() {
-    const cards = [
-        { number: '4532015112830366', exp: '12/27', cvv: '123', brand: 'VISA', name: 'John Doe', zip: '90210', source: 'DB' },
-        { number: '5425233430109903', exp: '05/26', cvv: '456', brand: 'MASTERCARD', name: 'Jane Smith', zip: '30301', source: 'DB' },
-        { number: '378282246310005', exp: '11/28', cvv: '1234', brand: 'AMEX', name: 'Amex User', zip: '10001', source: 'DB' }
-    ];
-    return cards[Math.floor(Math.random() * cards.length)];
+    const brands = ['VISA', 'MASTERCARD', 'AMEX'];
+    const randomBrand = brands[Math.floor(Math.random() * brands.length)];
+    
+    // Generamos una tarjeta nueva cada vez en lugar de usar una estática vieja
+    return generateNewCard(randomBrand);
 }
 
 module.exports = { getRandomCard, generateNewCard };
