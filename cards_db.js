@@ -1,46 +1,52 @@
-// Función auxiliar para generar una fecha futura aleatoria
-function generateFutureDate() {
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth() + 1; // 1-12
+// cards_db.js
+
+// Genera una fecha futura aleatoria (para que no estén expiradas)
+function getFutureDate() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
     
-    // Generar un año entre este año y +3 años
-    const futureYear = currentYear + Math.floor(Math.random() * 4); 
-    const futureMonth = Math.floor(Math.random() * 12) + 1;
+    // Generar una fecha entre 1 y 3 años en el futuro
+    const randomYear = year + Math.floor(Math.random() * 3);
+    const randomMonth = Math.floor(Math.random() * 12) + 1;
     
-    // Formato MM/YY
-    const mm = futureMonth.toString().padStart(2, '0');
-    const yy = futureYear.toString().slice(-2);
+    const mm = randomMonth.toString().padStart(2, '0');
+    const yy = randomYear.toString().slice(-2);
     
-    return { exp: `${mm}/${yy}`, year: futureYear };
+    return `${mm}/${yy}`;
 }
 
-function generateNewCard(brand) {
-    let number = '';
+// Genera una tarjeta válida matemáticamente (Algoritmo de Luhn)
+function generateValidCard(brand) {
     let prefix = '';
     let length = 16;
+    let name = '';
+    let zip = '';
 
     if (brand === 'VISA') {
         prefix = '4';
-        length = 16;
+        name = 'John Doe';
+        zip = '90210'; // Beverly Hills
     } else if (brand === 'MASTERCARD') {
-        prefix = '5'; 
-        length = 16;
+        prefix = '5';
+        name = 'Jane Smith';
+        zip = '10001'; // New York
     } else if (brand === 'AMEX') {
-        prefix = '37'; 
+        prefix = '37';
         length = 15;
+        name = 'Amex Holder';
+        zip = '94102'; // San Francisco
     }
 
-    // Generar dígitos aleatorios
+    // Generar números aleatorios
+    let number = prefix;
     for (let i = 1; i < length - 1; i++) {
         number += Math.floor(Math.random() * 10);
     }
-    
-    number = prefix + number;
 
-    // Calcular dígito Luhn
+    // Calcular dígito final (Luhn)
     let sum = 0;
-    let isEven = true; 
+    let isEven = true;
     for (let i = number.length - 1; i >= 0; i--) {
         let digit = parseInt(number[i], 10);
         if (isEven) {
@@ -53,29 +59,26 @@ function generateNewCard(brand) {
     const checkDigit = (10 - (sum % 10)) % 10;
     number += checkDigit;
 
-    // Generar Fecha FUTURE
-    const dateInfo = generateFutureDate();
+    // Generar CVV
     const cvvLength = brand === 'AMEX' ? 4 : 3;
     const cvv = Array.from({length: cvvLength}, () => Math.floor(Math.random() * 10)).join('');
 
     return {
         number: number,
-        exp: dateInfo.exp,
+        exp: getFutureDate(),
         cvv: cvv,
         brand: brand,
-        name: `${brand} User`,
-        zip: "10001",
-        source: "Generada"
+        name: name,
+        zip: zip,
+        source: "Generada (Luhn)"
     };
 }
 
-// Función para obtener una tarjeta estática con fecha CORREGIDA
+// Función principal para obtener una tarjeta aleatoria
 function getRandomCard() {
     const brands = ['VISA', 'MASTERCARD', 'AMEX'];
     const randomBrand = brands[Math.floor(Math.random() * brands.length)];
-    
-    // Generamos una tarjeta nueva cada vez en lugar de usar una estática vieja
-    return generateNewCard(randomBrand);
+    return generateValidCard(randomBrand);
 }
 
-module.exports = { getRandomCard, generateNewCard };
+module.exports = { getRandomCard };
