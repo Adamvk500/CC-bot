@@ -1,12 +1,11 @@
-// validator.js
 const axios = require('axios');
 
-// Verificar algoritmo de Luhn (Matemática básica de tarjetas)
-function luhnCheck(num) {
+// Función para verificar el algoritmo de Luhn (Validez matemática)
+function luhnCheck(cardNumber) {
     let sum = 0;
     let isEven = false;
-    for (let i = num.length - 1; i >= 0; i--) {
-        let digit = parseInt(num[i]);
+    for (let i = cardNumber.length - 1; i >= 0; i--) {
+        let digit = parseInt(cardNumber[i], 10);
         if (isEven) {
             digit *= 2;
             if (digit > 9) digit -= 9;
@@ -14,28 +13,33 @@ function luhnCheck(num) {
         sum += digit;
         isEven = !isEven;
     }
-    return (sum % 10) === 0;
+    return sum % 10 === 0;
 }
 
-// Obtener info del BIN (Banco, País, Marca)
+// Función para obtener Info del BIN (Banco, País, Marca)
 async function getBinInfo(cardNumber) {
-    const bin = cardNumber.slice(0, 6); // Primeros 6 dígitos
+    const bin = cardNumber.substring(0, 6);
+    
+    // API Gratuita y Estable para Bins
+    const url = `https://api.binlist.net/${bin}`;
+
     try {
-        // Usamos una API pública gratuita de Bins
-        const response = await axios.get(`https://api.binlist.net/${bin}`);
+        const response = await axios.get(url);
         const data = response.data;
+
         return {
             bank: data.bank?.name || "Desconocido",
-            country: data.country?.name || "Desconocido",
-            brand: data.scheme || "Desconocido",
-            type: data.type || "Desconocido"
+            country: data.country?.name || data.country?.iso2 || "Desconocido",
+            brand: data.brand || "Desconocido",
+            type: data.type || "Desconocido" // DEBIT, CREDIT, PREPAID
         };
     } catch (error) {
+        console.log(`Error al obtener BIN ${bin}: ${error.response?.status || error.message}`);
         return {
-            bank: "Error",
-            country: "Error",
-            brand: "Visa/MC",
-            type: "Error"
+            bank: "Cargando...",
+            country: "Cargando...",
+            brand: "Desconocido",
+            type: "CREDIT"
         };
     }
 }
